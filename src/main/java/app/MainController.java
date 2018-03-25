@@ -1,8 +1,6 @@
 package app;
 
 import app.backend.dbDriver;
-import app.models.Mark;
-import app.models.Student;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -12,7 +10,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Map;
 
 @MultipartConfig
 @WebServlet("/controller")
@@ -45,9 +42,6 @@ public class MainController extends HttpServlet {
         }
         System.out.println("[main controller] " + action);
         switch (action) {
-            case "getStudents":
-                request.setAttribute("students", db.getStudents());
-                break;
             case "get-roads":
                 request.setAttribute("roads", db.getRoads());
                 break;
@@ -57,51 +51,12 @@ public class MainController extends HttpServlet {
             case "get-sensors":
                 request.setAttribute("noRoads", db.getNotWorkingRoads());
                 break;
-            case "report":{
+            case "report": {
                 int id=Integer.valueOf(request.getParameter("id"));
                 int total=Integer.valueOf(request.getParameter("total"));
                 db.addRoadSensor(id, total);
-                break;}
-            case "getBadStudents":
-                request.setAttribute("students", db.getStudents());
-                request.setAttribute("badIds", db.getBadStudentsIds());
                 break;
-            case "addStudent":
-                String name = request.getParameter("name");
-                String groupStr = request.getParameter("group");
-                if (name == null || groupStr == null) {
-                    request.setAttribute("status", "500");
-                }
-                int group = Integer.parseInt(groupStr);
-                Student s = new Student(name, group);
-                db.createStudent(s);
-                Map<String, String[]> params = request.getParameterMap();
-                for (Map.Entry<String, String[]> entry : params.entrySet()) {
-                    if (entry.getKey().equals("name") || entry.getKey().equals("group") || entry.getKey().equals("action")) {
-                        continue;
-                    }
-                    System.out.println(entry.getKey() + " / " + entry.getValue());
-                    int grade = Integer.parseInt(entry.getValue()[0]);
-                    db.createMark(new Mark(entry.getKey(), grade, s.getId()));
-
-                }
-                request.setAttribute("students", db.getStudents());
-                request.setAttribute("badIds", db.getBadStudentsIds());
-                break;
-            case "deleteStudent":
-                System.out.println("[main controller] im'here");
-                String id = request.getParameter("id");
-                System.out.println(id);
-                if (id == null) {
-                    request.setAttribute("status", "500");
-                }
-                db.deleteStudent(id);
-                request.setAttribute("students", db.getStudents());
-                request.setAttribute("badIds", db.getBadStudentsIds());
-                break;
-            default:
-                request.setAttribute("status", "404");
-                break;
+            }
         }
         if (request.getAttribute("status") == null) {
             request.setAttribute("status", "200");

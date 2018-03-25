@@ -1,23 +1,15 @@
-/**
- * Created by Drapegnik on 08.03.17.
- */
 package app.backend;
 
 import app.config.Options;
-import app.models.*;
+import app.models.Road;
+import app.models.RoadStat;
 
 import java.sql.*;
-import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
 
 /**
  * <p>Class for connecting to database</p>
  *
- * @author Ivan Pazhitnykh
- * @version 1.0
  */
 public class dbDriver {
     private static final String GET_ROADS = "select * from traffic_info right join road on traffic_info.id=road.id " +
@@ -34,33 +26,6 @@ public class dbDriver {
     private PreparedStatement pstmt = null;
     private ResultSet res = null;
     private String sql;
-
-
-    private static String StudentsTable = Student.class.getSimpleName();
-    private static String MarksTable = Mark.class.getSimpleName();
-
-    /**
-     * SQL requests
-     */
-    private static final String CREATE_STUDENT = MessageFormat.format(
-            "INSERT INTO {0} (id, s_name, s_group) VALUES(?, ?, ?);", StudentsTable);
-
-    private static final String CREATE_MARK = MessageFormat.format(
-            "INSERT INTO {0} (id, subject, grade, studentId) VALUES(?, ?, ?, ?);", MarksTable);
-
-    private static final String GET_STUDENTS = MessageFormat.format(
-            "SELECT * FROM {0} INNER JOIN {1} ON {1}.studentId={0}.id;", StudentsTable, MarksTable);
-
-    private static final String GET_BAD_STUDENTS = MessageFormat.format(
-            "SELECT {0}.id, {0}.s_name, COUNT(*) as bad_marks_count FROM {0}" +
-                    " INNER JOIN {1} ON {0}.id={1}.studentId" +
-                    " WHERE {1}.grade < 4 GROUP BY {0}.id" +
-                    " HAVING COUNT(*) > 2;", StudentsTable, MarksTable);
-
-    private static final String DELETE_STUDENT = MessageFormat.format(
-            "DELETE st, mrk FROM {0} st" +
-                    " INNER JOIN {1} mrk ON st.id=mrk.studentId" +
-                    " WHERE st.id=?;", StudentsTable, MarksTable);
 
     /**
      * Wrapper on {@link dbDriver#connect()}
@@ -100,44 +65,12 @@ public class dbDriver {
      */
     private void createTable(String tableName, String sql) {
         System.out.println("[dbDriver] Creating table...");
-
         try {
             stmt.executeUpdate(sql);
             System.out.println("Table '" + Options.DB_NAME + "." + tableName + "' created successfully.");
         } catch (Exception se) {
             se.printStackTrace();
         }
-    }
-
-    /**
-     * Create {@link Student}s table
-     *
-     * @see dbDriver#createTable(String, String)
-     * @see Options#DB_NAME
-     */
-    public void createStudentsTable() {
-        String sql = "CREATE TABLE " + StudentsTable +
-                "(id VARCHAR(255) not NULL, " +
-                " s_name VARCHAR(255), " +
-                " s_group INTEGER, " +
-                " PRIMARY KEY ( id ))";
-        createTable(Student.class.getSimpleName(), sql);
-    }
-
-    /**
-     * Create {@link Mark}s table
-     *
-     * @see dbDriver#createTable(String, String)
-     * @see Options#DB_NAME
-     */
-    private void createMarkTable() {
-        String sql = "CREATE TABLE " + MarksTable +
-                "(id VARCHAR(255) not NULL, " +
-                " subject VARCHAR(255), " +
-                " grade INTEGER, " +
-                " studentId VARCHAR(255) not NULL, " +
-                " PRIMARY KEY ( id ))";
-        createTable(Mark.class.getSimpleName(), sql);
     }
 
     /**
@@ -161,174 +94,15 @@ public class dbDriver {
     }
 
     /**
-     * Insert {@link Student} object into table
-     *
-     * @param student {@link Student} instance
-     */
-    public void createStudent(Student student) {
-        try {
-            pstmt = conn.prepareStatement(CREATE_STUDENT);
-            pstmt.setString(1, student.getId());
-            pstmt.setString(2, student.getName());
-            pstmt.setInt(3, student.getGroup());
-            pstmt.executeUpdate();
-        } catch (Exception se) {
-            se.printStackTrace();
-        }
-    }
-
-    /**
-     * Remove {@link Student} and all his {@link Mark}s from db
-     *
-     * @param id {@link Student#id}
-     */
-    public void deleteStudent(String id) {
-        try {
-            System.out.println("[dbDriver] Delete student...");
-            pstmt = conn.prepareStatement(DELETE_STUDENT);
-            pstmt.setString(1, id);
-            pstmt.executeUpdate();
-            System.out.println("[dbDriver] Successfully delete student with id=" + id);
-        } catch (Exception se) {
-            se.printStackTrace();
-        }
-    }
-
-    /**
-     * Select all {@link Student}'s objects from db
-     *
-     * @return <pre>{@code ArrayList<Student>}</pre> {@link Student}'s objects
-     */
-    public ArrayList<Student> getStudents() {
-        System.out.println("[dbDriver] Select students...");
-        ArrayList<Student> data = new ArrayList<>();
-        try {
-            res = stmt.executeQuery(GET_STUDENTS);
-            HashMap<String, Student> map = new HashMap<>();
-            while (res.next()) {
-                String id = res.getString("id");
-                Student st = map.get(id);
-                if (st == null) {
-                    st = new Student(id, res.getString("s_name"), Integer.parseInt(res.getString("s_group")));
-                }
-
-                st.addMark(new Mark(res.getString("subject"), Integer.parseInt(res.getString("grade")), id));
-                map.put(id, st);
-                if (Options.DEBUG) {
-                    System.out.println("\t#" + res.getRow()
-                            + "\t" + res.getString("s_name")
-                            + "\t" + res.getString("subject")
-                            + "\t" + res.getString("grade")
-                            + "\t" + res.getString("id"));
-                }
-            }
-
-            for (Map.Entry<String, Student> entry : map.entrySet()) {
-                Student st = entry.getValue();
-                data.add(st);
-                if (Options.DEBUG) {
-                    System.out.println(st);
-                }
-            }
-            System.out.println("[dbDriver] Successfully select " + data.size() + " students.");
-
-        } catch (Exception se) {
-            se.printStackTrace();
-        }
-        return data;
-    }
-
-    /**
-     * Select all {@link Student}'s objects from db
-     * that have 3 and more bad (1, 2, 3) marks
-     *
-     * @return <pre>{@code ArrayList<String>} students_ids</pre>
-     */
-    public ArrayList<String> getBadStudentsIds() {
-        System.out.println("[dbDriver] Select bad students...");
-        ArrayList<String> data = new ArrayList<>();
-        try {
-            res = stmt.executeQuery(GET_BAD_STUDENTS);
-            while (res.next()) {
-                data.add(res.getString("id"));
-                if (Options.DEBUG) {
-                    System.out.println("\t#" + res.getRow()
-                            + "\t" + res.getString("s_name")
-                            + "\t" + res.getString("bad_marks_count")
-                            + "\t" + res.getString("id"));
-                }
-            }
-            System.out.println("[dbDriver] Successfully select " + data.size() + " bad students.");
-        } catch (Exception se) {
-            se.printStackTrace();
-        }
-        return data;
-    }
-
-    /**
-     * Insert {@link Mark} object into table
-     *
-     * @param mark {@link Mark} instance
-     */
-    public void createMark(Mark mark) {
-        try {
-            stmt = conn.createStatement();
-            pstmt = conn.prepareStatement(CREATE_MARK);
-            pstmt.setString(1, mark.getId());
-            pstmt.setString(2, mark.getSubject().toString());
-            pstmt.setInt(3, mark.getGrade());
-            pstmt.setString(4, mark.getStudentId());
-            pstmt.executeUpdate();
-        } catch (Exception se) {
-            se.printStackTrace();
-        }
-    }
-
-    /**
-     * Fetch {@link Student}s data from {@link Options#STUDENTS_FILE_NAME}
-     * Generate random {@link Mark}s with {@link Subject}s
-     * Save all data into db
-     *
-     * @see dbDriver#createMark(Mark)
-     * @see dbDriver#createStudent(Student)
-     * @see Options#STUDENTS_FILE_NAME
-     */
-    public void initDB() {
-        System.out.println("[dbDriver] Init database...");
-        ArrayList<Student> data = Student.readFromFile(Options.STUDENTS_FILE_NAME);
-        Random random = new Random();
-
-        for (Student student : data) {
-            System.out.println('\t' + student.shortToString());
-            createStudent(student);
-
-            for (Subject subject : Subject.values()) {
-                Mark mark = new Mark(subject, random.nextInt(10) + 1, student.getId());
-                System.out.println('\t' + mark.toString());
-                createMark(mark);
-            }
-            System.out.println();
-        }
-    }
-
-    private void dumpStudentsIntoFule() {
-        Student.writeInFile(Options.STUDENTS_FILE_NAME, getStudents());
-    }
-
-    /**
      * Drop database if exist, and create new
      * Create all tables
      *
      * @see dbDriver#dropDB()
-     * @see dbDriver#createStudentsTable()
-     * @see dbDriver#createMarkTable()
      * @see Options#DB_NAME
      */
     public void createDB() {
         dropDB();
         connect();
-        createStudentsTable();
-        createMarkTable();
     }
 
     private void close() {
@@ -426,12 +200,4 @@ public class dbDriver {
         }
         return data;
     }
-    /*public static void main(String[] args) {
-        dbDriver db = new dbDriver();
-        db.createDB();
-        db.initDB();
-        db.getStudents();
-        db.close();
-        Student.writeInFile(Options.STUDENTS_FILE_NAME, Student.generateFakeData());
-    }*/
 }

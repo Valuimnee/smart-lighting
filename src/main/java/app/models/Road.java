@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.sql.Date;
 
 /**
- * @author User
+ * @author TsalapovaMD
  * @version 1.0, 3/25/2018
  */
 public class Road implements Serializable {

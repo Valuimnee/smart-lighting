@@ -3,7 +3,7 @@ package app.models;
 import java.io.Serializable;
 
 /**
- * @author User
+ * @author TsalapovaMD
  * @version 1.0, 3/25/2018
  */
 public class RoadStat implements Serializable {
